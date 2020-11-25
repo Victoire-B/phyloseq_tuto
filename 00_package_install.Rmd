@@ -64,7 +64,13 @@ library(devtools)
 install_local("./structSSI_1.1.1.tar.gz")
 ```
 
+```{r}
+install.packages("rmarkdown")
+```
 
+```{r}
+install.packages("knitr")
+```
 
 
 
