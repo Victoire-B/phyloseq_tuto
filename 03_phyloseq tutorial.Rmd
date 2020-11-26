@@ -13,20 +13,18 @@ On a récupéré et utilisé des données de fichiers déjà existants
 ```{r}
 library(ggplot2)
 ```
-
 ```{r}
 library(dada2)
 ```
-
 ```{r}
 library(phyloseq)
 ```
 
+Chargement des images de dada2
 ```{r}
-load("~/Dada2_tutorial_FinalEnv")
+load("~/phyloseq_tuto/02_Dada2_tutorial_FinalEnv")
 ```
-
-
+# Combiner les données dans un objet phyloseq
 ```{r}
 samples.out <- rownames(seqtab.nochim)
 subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
@@ -39,24 +37,10 @@ samdf$When[samdf$Day>100] <- "Late"
 rownames(samdf) <- samples.out
 ```
 On a attribué des noms à des données. -> variables / vecteurs 
-
 la fonction samdf = graph qui englobe les ensembles de données
 
-```{r}
-library(phangorn)
-library(DECIPHER)
-seqs <- getSequences(seqtab.nochim)
-names(seqs) <- seqs # This propagates to the tip labels of the tree
-alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA,verbose=FALSE)
-phangAlign <- phyDat(as(alignment, "matrix"), type="DNA")
-dm <- dist.ml(phangAlign)
-treeNJ <- NJ(dm) # Note, tip order != sequence order
-fit = pml(treeNJ, data=phangAlign)
-fitGTR <- update(fit, k=4, inv=0.2)
-fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
-        rearrangement = "stochastic", control = pml.control(trace = 0))
-detach("package:phangorn", unload=TRUE)
-```
+# Chargement des données 
+On ajoute l'arbre phylogénétique généré dans la variable ps déjà existante
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
@@ -65,18 +49,11 @@ ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
 ps
 ```
 
-# Télécharger l'objet phyloseq déjà construit
-```{r}
-ps_connect <-url("https://raw.githubusercontent.com/spholmes/F1000_workflow/master/data/ps.rds")
-ps = readRDS(ps_connect)
-ps
-```
 
 # Construction d'un objet  
 
 Apparition dans "global environment"
 À partir de phyloseq création d'un objet, on a pris sample_data --> échantillon
-
 
 Création de variable à partir de ce qu'on avait avant
 
@@ -109,67 +86,98 @@ on colore la légende quand "when"
 plot_ordination(ps.prop, ord.nmds.bray, color="When", title="Bray NMDS")
 ```
 
-Bar plot
+# Bar plot
 
 ```{r}
+library(ggplot2)
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales = "free_x")
 ```
 Attention à ne pas oublier de cocher le package ggplot2 !
+On a fini le tuto dada2 en entier
 
-# Indiquer les rangs dans l'ensemble des données
+# Importation de l'objet
+## Télécharger l'objet phyloseq déjà construit
+```{r}
+ps_connect <-url("https://raw.githubusercontent.com/spholmes/F1000_workflow/master/data/ps.rds")
+ps = readRDS(ps_connect)
+ps
+```
+On a rajouté les données phyloseq dans la variable contenant l'arbre crée à partir des données de Dada2
+
+## Construction de l'arbre
+
+La relation phylogénétique est utilisée pour informer les analyses en aval, elle indique le calcul des distances phylogénétiques entre les communautés microbiennes.
+Construire l'arbre phylogénétique reliant de novo les variantes de séquences importées. 
+Alignement multiple en utilisant la library DECIPHER
+```{r}
+library(phangorn)
+library(DECIPHER)
+seqs <- getSequences(seqtab.nochim)
+names(seqs) <- seqs # This propagates to the tip labels of the tree
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA,verbose=FALSE)
+phangAlign <- phyDat(as(alignment, "matrix"), type="DNA")
+dm <- dist.ml(phangAlign)
+treeNJ <- NJ(dm) # Note, tip order != sequence order
+fit = pml(treeNJ, data=phangAlign)
+fitGTR <- update(fit, k=4, inv=0.2)
+fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
+        rearrangement = "stochastic", control = pml.control(trace = 0))
+detach("package:phangorn", unload=TRUE)
+```
+# Taxonomy filtering
+## Indiquer les rangs dans l'ensemble des données
 
 ```{r}
 rank_names(ps)
 ```
 
-# Créer un tableau, nombre de caractéristiques pour chaque phyla
+## Créer un tableau, nombre de caractéristiques pour chaque phyla
 ```{r}
 table(tax_table(ps)[, "Phylum"], exclude = NULL)
 ```
 
-# Créer une table avec le nombre dans chaque phyla
+## Créer une table avec le nombre dans chaque phyla
 ```{r}
 ps <- subset_taxa(ps, !is.na(Phylum) & !Phylum %in% c("", "uncharacterized"))
 ```
 
 On enlève ceux qu'on n'a pas réussi à catégoriser
 
-# Compute prevalence of each feature, store as data.frame, chaque ensemble avec les data frame
+## Compute prevalence of each feature, store as data.frame, chaque ensemble avec les data frame
 ```{r}
 prevdf = apply(X = otu_table(ps),
                MARGIN = ifelse(taxa_are_rows(ps), yes = 1, no = 2),
                FUN = function(x){sum(x > 0)})
 ```
 
-# Ajoutez la taxonomie et le nombre total de read à ces data frame
+## Ajoutez la taxonomie et le nombre total de read à ces data frame
 ```{r}
 prevdf = data.frame(Prevalence = prevdf,
                     TotalAbundance = taxa_sums(ps),
                     tax_table(ps))
 ```
 
-
-# Calcule les prévalences totales (1) et les moyennes (2)des caractéristiques de chaque embrenchement
+## Calcule les prévalences totales (1) et les moyennes (2)des caractéristiques de chaque embrenchement
 ```{r}
 plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
 ```
 
-# Définir les phyla pour les filtrer
+## Définir les phyla pour les filtrer
 ```{r}
 filterPhyla = c("Fusobacteria", "Deinococcus-Thermus")
 ```
 
-# Filtrer les entrées avec un Phyla non identifié
+## Filtrer les entrées avec un Phyla non identifié
 ```{r}
 ps1 = subset_taxa(ps, !Phylum %in% filterPhyla)
 ps1
 ```
 Filtrer la taxonomie 
 
-#Filtrer la prévalence 
+## Filtrer la prévalence 
 ```{r}
 prevdf1 = subset(prevdf, Phylum %in% get_taxa_unique(ps1, "Phylum"))
 ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps),color=Phylum)) +
@@ -179,19 +187,19 @@ ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps),color=Phylum)) +
   facet_wrap(~Phylum) + theme(legend.position="none")
 ```
 
-# Définir le seuil de prévalence comme étant de 5 % du total des échantillons
+## Définir le seuil de prévalence comme étant de 5 % du total des échantillons
 ```{r}
 prevalenceThreshold = 0.05 * nsamples(ps)
 prevalenceThreshold
 ```
 
-# Exécuter le filtre de prévalence, en utilisant la fonction `prune_taxa()`
+## Exécuter le filtre de prévalence, en utilisant la fonction `prune_taxa()`
 ```{r}
 keepTaxa = rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
 ps2 = prune_taxa(keepTaxa, ps)
 ```
 
-# Agglomérer les taxa
+## Agglomérer les taxa
 Combien de genres seraient présents après le filtrage?
 ```{r}
 length(get_taxa_unique(ps2, taxonomic.rank = "Genus"))
@@ -243,19 +251,19 @@ plot_abundance = function(physeq,title = "",
 }
 ```
 
-# Transformer en abondance relative. 
+## Transformer en abondance relative. 
 Enregistrer comme nouvel objet. Abondance en abondance relative
 ```{r}
 ps3ra = transform_sample_counts(ps3, function(x){x / sum(x)})
 ```
 
-On fait des plot pour voir nos abondances relatives
+# On fait des plot pour voir nos abondances relatives
 ```{r}
 plotBefore = plot_abundance(ps3,"")
 plotAfter = plot_abundance(ps3ra,"")
 ```
 
-# Combiner chaque plot en un seul graphique
+## Combiner chaque plot en un seul graphique
 ```{r}
 gridExtra::grid.arrange(nrow = 1, plotBefore, plotAfter)
 ```
