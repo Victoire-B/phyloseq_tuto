@@ -1,8 +1,8 @@
 ---
 title: "03_Phyloseq tutorial"
-output: 
-  html_notebook:
-    toc: true
+output:
+  githubl_document:
+    toc: yes
     toc_depth: 2
 ---
 
