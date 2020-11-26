@@ -246,7 +246,7 @@ cat("Of those,", sum(match.ref), "were exact matches to the expected reference s
 # Conclusion
 
 ```{r}
-save.image(file="Dada2_tutorial_FinalEnv")
+save.image(file="02_Dada2_tutorial_FinalEnv")
 ```
 
 
