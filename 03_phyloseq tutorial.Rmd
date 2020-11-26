@@ -566,6 +566,7 @@ ggplot(rf_prox) +
 ```
 Le model forest aléatoire détermine une distance entre les échantillons, qui peut être entré dans une PCoA pour produire une parcelle de proximité
 
+
 ```{r}
 as.vector(tax_table(ps)[which.max(importance(rfFit$finalModel)), c("Family", "Genus")])
 ```
