@@ -5,13 +5,13 @@ output:
     toc: true
     toc_death: 2
 ---
-
+# Appel des séquences
 ```{r}
 library("dada2")
 ```
-On appelle le package dada2
+On a appellé le package dada2
 
-Les données ont été télécharger 
+Les données ont été téléchargées
 On definit la variable Path pour changer d'endroit dans l'arborescense du fichier une fois dézipé MiSeq_SOP :
 ```{r}
 path <- "~/MiSeq_SOP" # CHANGE ME to the directory containing the fastq files after unzipping.
@@ -21,7 +21,7 @@ On voit les fichiers fastq
 
 On crée des variables pour l'analyse du plot, les Read 1 vont dans la variable fnFs et les Read2 dans la variable fnRs
 
--sample.names : Extrait les noms des échantillons, en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
+- la foction sample.names : extrait les noms des échantillons, tout en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
 
 
 ```{r}
@@ -32,17 +32,19 @@ fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 ```
 
-Nous avons uniquement les read issu d'Illumina --> on va évaluer la qualité de reads
-On affiche les profil de qualité des Read1 en avant du premier et du deuxième read issus de la variable crée précédémment FnFs
+On a récupéré seulement les read issu d'Illumina --> on va évaluer la qualité de chaque read
+On affiche les profils de qualité des Read1 (R1) (= Forward) en avant du premier et du deuxième read issus de la variable crée précédémment FnFs
 ```{r}
 plotQualityProfile(fnFs[1:2])
 ```
 
-On affiche les profil de qualité des Read2 en arrière du premier et du deuxième read issus de la variable crée précédémment FnRs
+On affiche les profil de qualité des Read2 (R2) (= Reverse) en arrière du premier et du deuxième read issus de la variable crée précédémment FnRs
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
-On va filtrer les variables contenant les reads 1 et 2. À partir de ces filtrages on attribue des variable et des noms associées 
+# Filtration
+
+On va filtrer les variables contenant les read 1 et 2. À partir de ces filtrages on attribue des variable et des noms associées 
 filtFs : pour les read1
 filtRs : pour les read2
 ```{r}
@@ -64,19 +66,17 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 ```
-On obtient le nombre de bases (les nucléotides) qui sont gardées une fois la filtration effectuées ici que pour les R1. Pour le reads F3D30 S188 R1  001 :7793 nt pour le read avant filtration et 7113 nt après filtration. 680 nt ont été enlevé : les primers ont été supprimés et les nucléotides pas bons. 
+On obtient le nombre de bases (les paires de base) qui sont gardées une fois la filtration effectuées ici que pour les R1. Pour le reads F3D30 S188 R1  001 :7793 nt pour le read avant filtration et 7113 nt après filtration. 680 nt ont été enlevé : les primers ont été supprimés et les nucléotides pas bons. 
 
-# Apprentissage des erreurs 
+## Apprentissage des erreurs 
 
 Il est possible d'avoir des erreurs, avec Dada2 on inspecte les séquences. 
 On utilise un modèle d'erreur paramétrique err pour les R1 et R2 
 
-But : Le modèle d'erreur de DADA2  permet identier les positions avec une forte probabilité d'erreur et par la suite changer avec la base la plus probable, qui ressemble donc plus a la séquence majoritaire proche abondande
+Le But : Le modèle d'erreur de DADA2  permet identifier les positions avec une forte probabilité d'erreur et par la suite changer avec la base la plus probable. Cela veut dire celle quiest présente dans la séquence la plus abondante
 
 On crée les variables : 
--errF : recoit le modèle d'erreur paramétrique par la méthode LearnErrors pour les read avant filtré (tronqué)
-
-Ici Dada2 calcule un modèle d'erreur à partir des données de séquençages. On applique cette méthode sur les reads forward (Fs) = R1 et reverse (Rs) = R2
+-errF : recoit le modèle d'erreur paramétrique par la fonction LearnErrors pour les R1 et R2 filtrés 
 
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
@@ -86,55 +86,53 @@ errF <- learnErrors(filtFs, multithread=TRUE)
 errR <- learnErrors(filtRs, multithread=TRUE)
 ```
 
-# Visualisation des modèles d'ereur du forward
-Ça = erreur de Fd
-x= probabilité des mutations
-y= q score
+## Visualisation des modèles d'ereur du forward
 
+En abscisse on a la probabilité des mutations et en ordonnée le q score
 Q30 : la probabilité que la base trouver sois la bonne 
 ```{r}
 plotErrors(errF, nominalQ=TRUE)
 ```
 
-Chaque mutation est possible les taux d'erreur sont indiqués. 
--points  : les taux d'erreur observés pour chaque score de qualité du consensus. 
--ligne noire: taux d'erreur estimé après convergence de l'algorithme d'apprentissage machine. 
--ligne rouge: taux d'erreur attendu selon la définition nominale du Q-score.
+Chaque mutation est possible, les taux d'erreur sont indiqués. 
+- points  : les taux d'erreur observés pour chaque score de qualité. 
+- ligne noire: taux d'erreur estimé après convergence de l'algorithme d'apprentissage. 
+- ligne rouge: taux d'erreur attendu selon le Q-score.
 
-Les taux d'erreur estimés (ligne noire) correspondent bien aux taux observés (points), et les taux d'erreur diminuent avec l'augmentation de la qualité comme prévu. Tout semble raisonnable et nous procédons avec confiance
+Les taux d'erreur estimés correspondent aux taux observés, et les taux d'erreur diminuent avec l'augmentation de la qualité. 
 
-# Exemple d'interférences
+## Exemple d'interférences
 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
-Calcul pour séquences composées de séquences uniques 
-Dans notre exemple avec les donnée de MiSeq_SOP, l'échantillon 1 a 7113 read dont 1979  read unique les autres peuvent être retrouvées plusieus fois. Dans les information supplémentaires on a les redondances, le clustering ... 
+Calcul pour les séquences composées de séquences uniques 
+Dans notre exemple avec les donnée de MiSeq_SOP, l'échantillon 1 a 7113 read dont 1979 read unique les autres peuvent être retrouvées plusieus fois. Dans les information supplémentaires on a les redondances, le clustering ... 
 
 On fait pareil pour les reverses (Rs)
 ```{r}
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```
 
-Inspecter la premiere étagère du premeir placard de dada2
+Ici, on inspecte la premiere étagère du premeir placard de dada2
 ```{r}
 dadaFs[[1]]
 ```
 
-Inspecter la deuxième étagère du premier placard de dada2 (deuxième échantillon)
+On inspecte la deuxième étagère du premier placard de dada2 (deuxième échantillon)
 ```{r}
 dadaFs[[2]]
 ```
-Nous avons fini le filtrage des reads. 
+Le filtrage des reads est fini. 
 
 # Aligner les R1 et R2 en un contig
 
 Le but est de créer des contigs à partir des R1(forwards) et des R2 (reverse)
-
-Ici c'est posssible car amplification du V4 de l'ARN 16S il y a donc un overlap avec read1 et read2 
+Ici c'est posssible car c'est une amplification de la région V4 de l'ARN 16S il y a donc un overlap avec read1 et read2 
 
 - verbose : montrer les étapes avec du texte pendant qu'elles sont réalisées
-- objet merge: liste de data.frames de chaque échantillon. Chaque data.frame contient la séquence fusionnée, son abondance, et les indices des variantes de la séquence avant et arrière qui ont été fusionnées. Les lectures appariées qui ne se chevauchaient pas exactement ont été supprimées par mergePairs, ce qui a permis de réduire davantage les sorties parasites.
+- objet merge: liste de data.frames de chaque échantillon. Chaque data.frame contient la séquence fusionnée, son abondance, et les indices des variantes de la séquence avant et arrière fusionnées.
+- mergePairs: suppression des read apparies qui se chevauchaient -> réduction du bruit
 - head merge : regarder la première ligne
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
@@ -146,9 +144,9 @@ head(mergers[[1]])
 
 Table de variant de séquences d'amplicon (ASV), une version à plus haute résolution de la table OTU produite par les méthodes traditionnelles.
 
-On va partir de l'abondance, on crée la table à partir de merger
+On va partir de l'abondance, on crée la table à partir de notre objet merger
 
-- objet seqtab : une table avec en ligne le nombre échantillon, en colonne les séquences elle-même à l'intérieur ou on observer la séquence dans l'échantillon 
+- objet seqtab : une table avec en ligne le nombre échantillon, en colonne les séquences elle-même à l'intérieur ou on observe la séquence dans l'échantillon 
 - dim : récupérer ou définir la dimension d'un objet.
 ```{r}
 seqtab <- makeSequenceTable(mergers)
@@ -166,16 +164,15 @@ table(nchar(getSequences(seqtab)))
 # Chimères
 
 Pendant  l'amplification pendant PCR, on amplifie avec les primers 
-Avec le primer F(pour les forwards), on crée la séqunece complémentaire, mais pour x ou y, l'élongation s'arrête 
-On aura le 16S  qui n'aura pas bouger et un autre fragment simple brin plus court. Lors du cycle suivant en PCR, on va avoir un des fragment 16S (le rouge et l'incomplet) qui vont s'hydrider sur un autre fragment 16S comme un primer et donc continuer élongation (verte) pour donner un truc hybride à la fin qui sera le début du rouge et a la fin du vert
+Avec le primer F(pour les forwards), on crée la séquence complémentaire, mais pour x ou y, l'élongation s'arrête 
+Comment se créer les chimères : On a le 16S qui restera intact et un autre fragment simple brin plus court. Lors du cycle suivant en PCR, on va avoir un des fragment 16S (rouge par exemple) qui vont s'hydrider sur un autre fragment 16S comme un primer et donc continuer élongation (verte par exemple) pour donner une séquence hybride à la fin qui sera le début du rouge et a la fin du vert
 
 Ce phénomène est rare, mais lorsqu'il y a plein de séquence possible et il faut les enlever du jeu de données 
 Il n'est pas possible de les détecter au niveau de la taille de la séquence. En revanche, on peut regarder toutes les séquences rares dont le début correspond à une séquence parent dans ce jeu donnée et la fin d'une autre séquence parent
 
+Appliquer à seqtab et transférer à une nouvelle variable seqtab.nochim
 
-Appliquer à seqtab  et transferer à une nouvelle variable seqtab.nochim
-
--> 1/5, les 293 unique mais qui représente plus de séquence dans le jeu de donnée
+-> 1/5, les 293 uniques mais qui représente plus de séquence dans le jeu de donnée
 
 ## Enlever les chimères par méthode consensus 
 
@@ -216,7 +213,7 @@ wget https://zenodo.org/record/3986799/files/silva_nr99_v138_train_set.fa.gz
 taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
 ```
 
-# Assignation taxonomique n°2 Silva species assignement
+## Assignation taxonomique n°2 Silva species assignement
 ```{bash}
 wget https://zenodo.org/record/3986799/files/silva_species_assignment_v138.fa.gz
 ```
@@ -229,8 +226,9 @@ taxa.print <- taxa # Removing sequence rownames for display only
 rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
+On a construit une table qui commence au niveau du reigne et qui va jusqu'à l'espèce. Les résultats montrent que les séquences n'ont pas pu être assignées jusqu'à l'espèce voire même au niveua du genre hormispour la séquence 5. 
 
-## Evaluer l'a précision de l'assignation taxonomique 
+## Evaluer la précision de l'assignation taxonomique 
 ```{r}
 unqs.mock <- seqtab.nochim["Mock",]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
