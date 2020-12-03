@@ -3,7 +3,7 @@ title: "Dada2 tutorial"
 output: 
   github_document:
     toc: true
-    toc_death: 2
+    toc_depth: 2
 ---
 # Appel des séquences
 ```{r}
@@ -57,7 +57,7 @@ names(filtRs) <- sample.names
 
 Les paramètres de filtrage standards : 
 -maxN=0 (Dada2 ne nécessite pas de Ns), 
--truncQ=2 : on va tronquer pour les reads avant a 240 et 160 pour les reads arrières
+-truncQ=2 : on va tronquer pour les reads 1 a 240 et 160 pour les reads 2
 -rm.phix=TRUE 
 -maxEE=2  -> le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
 ```{r}
@@ -66,7 +66,7 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 ```
-On obtient le nombre de bases (les paires de base) qui sont gardées une fois la filtration effectuées ici que pour les R1. Pour le reads F3D30 S188 R1  001 :7793 nt pour le read avant filtration et 7113 nt après filtration. 680 nt ont été enlevé : les primers ont été supprimés et les nucléotides pas bons. 
+On obtient le nombre de bases (les paires de base) qui sont gardées. La filtration est effectuée ici que pour les R1. Pour le reads F3D30 S188 R1  001 :7793 nt pour le read avant filtration et 7113 nt après filtration. 680 nt ont été enlevé : les primers ont été supprimés et les nucléotides pas bons. 
 
 ## Apprentissage des erreurs 
 
