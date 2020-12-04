@@ -1,5 +1,5 @@
 ---
-title: "Dada2 tutorial"
+title: "Contrôle continu 1 : Analyse des données avec dada2"
 output: 
   github_document:
     toc: true
